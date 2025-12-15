@@ -24,6 +24,7 @@ if you are running on windows set below
 3. SPARK_HOME = C:\spark\spark-3.5.7-bin-hadoop3
 
 create a CSV folder in current directory and run following command.
+in the larger picture we can have the attached code running in databricks with suitable environment with pyspark and get the input path pointed to the ADLS Gen2 container where Azure ML studio will output the CSV files with annotations. 
 
 ```python
 python process_annotation_pyspark.py
