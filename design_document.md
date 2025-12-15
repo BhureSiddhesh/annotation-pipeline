@@ -178,7 +178,8 @@ Supporting components include logging, support ticket management, and integratio
 
 ## 4. Data Lineage
 
-1. **Data Ingestion**: Data enters the system via Event Hub.
+1. **Data Ingestion**: 
+Data enters the system via Event Hub.
 2. **Preprocessing**: Azure Functions process and store data in PostgreSQL.
 3. **Processing**: Data is moved to Databricks for transformation and preparation.
 4. **Annotation**: Azure ML Studio performs text labeling and annotation.
@@ -186,5 +187,16 @@ Supporting components include logging, support ticket management, and integratio
 6. **Validation**: automatically picked up by spark structured streaming for Pyspark processing. for preforming quality validation.
 7. **Output Generation**: Final outputs are generated and made available for downstream use in JSON.
 
+
+    Azure PostgreSQL maintains explicit relational lineage for every record.
+    Core tables link via foreign keys:
+
+    | Table            | Key Fields                                                                        | Lineage Role                                           |
+    | ---------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------ |
+    | documents        | doc_id (PK), bronze_path, silver_path, ingestion_timestamp                        | Raw source paths and preprocessing version             |
+    | annotations      | annotation_id (PK), doc_id (FK), annotator_id, label, raw_annotation_path,text | Ties labels to document and Kafka task origin          |
+    | quality_metrics  | validation_id (PK), annotation_id (FK), gold_path, status, kappa_score, confidence_score            | Validation decisions and final Gold path               |
+
+    every entry joining using these table sorted by timestampl field will give us entire journey path for input annotator.
 
 
