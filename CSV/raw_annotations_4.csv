@@ -1,0 +1,3 @@
+text,annotator_id,label,confidence_score
+"customer care contact email",1,"customer_service",0.85
+"customer care contact email",2,"customer_service",0.88

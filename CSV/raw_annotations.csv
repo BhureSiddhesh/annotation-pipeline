@@ -1,0 +1,8 @@
+text,annotator_id,label,confidence_score
+"I need to reset my password",1,"password_reset",0.95
+"My order is late",2,"shipping_issue",0.88
+"How do I return an item?",1,"return_request",0.92
+"My order is late",3,"order_status",0.90
+"I need to reset my password",2,"password_reset",0.98
+"What are your business hours?",1,"general_inquiry",0.60
+"How do I return an item?",3,"return_request",0.91

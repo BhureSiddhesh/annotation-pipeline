@@ -1,0 +1,4 @@
+My order is late | order_status,shipping_issue | 2
+customer care contact email | customer_service,customer_care | 2
+how do I cancle my order | refund_request,cancle_order | 2
+My order is late | shipping_issue,late order | 2
