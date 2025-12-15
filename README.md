@@ -17,7 +17,7 @@ this code utilizes pyspark for the processing due to its scalablility and other 
 requirements.txt has Pyspark == 3.5.0 and this code relies on 
 spark-3.5.7-bin-hadoop3 and jdk-18.0.2.1
 
-if you are running on windows set below 
+if you are running on windows set below system environment variables.
 
 1. HADOOP_HOME = C:\spark\spark-3.5.7-bin-hadoop3
 2. JAVA_HOME = C:\Program Files\Java\jdk-18.0.2.1
