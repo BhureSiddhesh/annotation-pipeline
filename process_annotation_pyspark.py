@@ -44,6 +44,12 @@ def process_batch(batch_df, batch_id):
 print("Starting the Spark Context and Streaming Context...")
 spark = SparkSession.builder.appName("AnnotationProcessor").master("local[*]").getOrCreate()
 
+# -- Configure paths (replace with your values) --
+input_path  = "abfss://<container>@<storage-account>.dfs.core.windows.net/path/to/labeled/YYYY/MM/DD/"
+checkpoint  = "dbfs:/mnt/checkpoints/auto_loader/labeled_files/"
+out_delta_high_conf = "dbfs:/mnt/delta/labeled/high_confidence/"
+out_delta_low_conf  = "dbfs:/mnt/delta/labeled/low_confidence/"
+
 input_schema = StructType([
     StructField("text", StringType(), True),
     StructField("annotator_id", IntegerType(), True),

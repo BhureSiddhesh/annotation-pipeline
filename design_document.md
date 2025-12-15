@@ -1,5 +1,5 @@
 # Design Document: Annotation Architecture
-![Annotation Architecture](./annotation_architecture.jpg)
+![Annotation Architecture](./annotation_architecture_v2.jpg)
 
 ## 1. Overview
 
@@ -69,9 +69,54 @@ Supporting components include logging, support ticket management, and integratio
         Handling Date-Based Naming Conventions Configure Auto Loader to target the parent directory containing date-partitioned subfolders 'abfss://container@account.dfs.core.windows.net/labeled/YYYY/MM/DD/', automatically discovering and ingesting new files regardless of naming:
 
     ```python
-    # Databricks (PySpark) - Auto Loader (cloudFiles) streaming example
-    from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType, IntegerType
-    from pyspark.sql.functions import col
+    from pyspark.sql import SparkSession
+    from pyspark.streaming import StreamingContext
+    from pyspark.sql.types import *
+    from pyspark.sql.functions import col, collect_set, size, current_timestamp, concat_ws
+    import os
+
+    # -- Processing the Validation and filter out bad annotation data
+    def process_batch(batch_df, batch_id): 
+        batch_df = batch_df.filter(col("confidence_score").cast("double") >= 0.8)
+        disagreement_df = (
+            batch_df.groupBy("text")
+                    .agg(collect_set("label").alias("distinct_labels"))
+                    .withColumn("num_distinct_labels", size(col("distinct_labels")))
+                    .filter(col("num_distinct_labels") > 1)
+        )
+        # Example: show or write to sink
+        disagreement_df.show(truncate=False)
+
+        non_disagree_df = batch_df.join(
+        disagreement_df.select("text"),
+        on="text",
+        how="left_anti"
+        )
+
+
+        # --writitng the disagreements.log
+        rows = disagreement_df.collect()
+        with open("output\disagreement\disagreements.log", "a", encoding="utf-8") as f:
+            for r in rows:
+                # r.distinct_labels is a list; join into comma-separated string
+                labels = ",".join(r["distinct_labels"]) if r["distinct_labels"] else ""
+                line = f'{r["text"]} | {labels} | {r["num_distinct_labels"]}\n'
+                f.write(line)
+
+        non_disagree_df.show(truncate=False)
+
+        # output_dir = "clean_training_dataset.json"  # adjust path as needed
+        # non_disagree_df.write.mode("append").json(output_dir, lineSep="\n")
+
+        # -- writing jsonl with clean data.
+        json_lines = non_disagree_df.toJSON().collect()
+        with open("clean_training_dataset.jsonl", "a", encoding="utf-8") as f:
+            for line in json_lines:
+                f.write(line.rstrip("\n") + "\n")
+
+
+    print("Starting the Spark Context and Streaming Context...")
+    spark = SparkSession.builder.appName("AnnotationProcessor").master("local[*]").getOrCreate()
 
     # -- Configure paths (replace with your values) --
     input_path  = "abfss://<container>@<storage-account>.dfs.core.windows.net/path/to/labeled/YYYY/MM/DD/"
@@ -79,61 +124,26 @@ Supporting components include logging, support ticket management, and integratio
     out_delta_high_conf = "dbfs:/mnt/delta/labeled/high_confidence/"
     out_delta_low_conf  = "dbfs:/mnt/delta/labeled/low_confidence/"
 
-    # -- Define schema matching exported labeled files (adjust types/fields as needed) --
-    schema = StructType([
-        StructField("UNIQUE_DOC_ID", StringType(), True),
-        StructField("ticket_text", StringType(), True),
+    # -- Defining the Schema 
+    input_schema = StructType([
+        StructField("text", StringType(), True),
+        StructField("annotator_id", IntegerType(), True),
         StructField("label", StringType(), True),
-        StructField("confidence", DoubleType(), True),
-        StructField("annotator_count", IntegerType(), True),
-        StructField("annotator_agreement", DoubleType(), True),
-        StructField("created_at", TimestampType(), True)
+        StructField("confidence_score", DoubleType(), True)
     ])
 
-    # -- Read stream with Auto Loader (cloudFiles) --
-    df = (spark.readStream
-        .format("cloudFiles")
-        .option("cloudFiles.format", "csv")           # or "json" / "parquet"
-        .option("header", "true")
-        .option("maxFilesPerTrigger", 100)
-        .option("cloudFiles.includeExistingFiles", "true")
-        .schema(schema)
-        .load(input_path))
+    # -- Reading the stream from CSV 
+    raw = spark.readStream.schema(input_schema).format("csv").option("header", "true").load("CSV")
 
-    # -- Simple transformations / filters per quality rules --
-    # Example: separate high-confidence and low-confidence annotations,
-    # and detect potential disagreements (low agreement or multiple annotators disagreeing)
-    high_conf = df.filter(col("confidence") >= 0.8)
-    low_conf  = df.filter(col("confidence") < 0.8)
+    stream = raw.withColumn("ingest_timestamp", current_timestamp())
+    query = (
+        stream.writeStream
+            .foreachBatch(process_batch)
+            .start()
+    )
 
-    # Optional: mark disagreements (adjust logic to your schema)
-    disagreements = df.filter(col("annotator_agreement") < 0.6)
+    query.awaitTermination()
 
-    # -- Write streams as JSONL (newline-delimited JSON) to high_conf/ and low_conf/ --
-    (high_conf.writeStream
-        .format("json")
-        .option("path", out_delta_high_conf)                       # writes JSONL files to this location
-        .option("checkpointLocation", checkpoint + "high_conf/")
-        .option("compression", "none")
-        .outputMode("append")
-        .start())
-
-    (low_conf.writeStream
-        .format("json")
-        .option("path", out_delta_low_conf)
-        .option("checkpointLocation", checkpoint + "low_conf/")
-        .option("compression", "none")
-        .outputMode("append")
-        .start())
-
-    # -- Write disagreements as CSV --
-    (disagreements.writeStream
-        .format("csv")
-        .option("path", "dbfs:/mnt/delta/labeled/disagreements/")
-        .option("checkpointLocation", checkpoint + "disagreements/")
-        .option("header", "true")
-        .outputMode("append")
-        .start())
     ```
 
 ## 3. Technology Description
@@ -154,14 +164,17 @@ Supporting components include logging, support ticket management, and integratio
 - **Pyspark**:
     Unified Data processing and in memory computation. Spark optimizes performance through lazy evaluation. Instead of processing data immediately, Spark builds a DAG of the operations to be performed. Spark ensures reliability by offering fault tolerance through the concept of Resilient Distributed Datasets (RDDs).
 
+- **PostgreSQL**
 
+    we are using PosgreSQL for simplisity and its relationald DB properties to store the preprocessed records.
+    we can utilize this as a recory from a checkpoint in case of failure. however it also provide as trigger and masking mechanisum for PII data
 
-    
+- **Azure ML studio Text Labeling**
 
+    Azure ML studio provides us with its own inbuild annotation queue with partition by document_id / priority (the fields we add during preprocessing) for labelling the Text rows through UI
+    it has a good integration with ADLS Gen2 with incremental approach (refresh)
+    it also suppports various formats CSV/JSON and bach / incremental export to DB / ADLS Gen2
 
-
-
- management.
 
 ## 4. Data Lineage
 
@@ -169,7 +182,9 @@ Supporting components include logging, support ticket management, and integratio
 2. **Preprocessing**: Azure Functions process and store data in PostgreSQL.
 3. **Processing**: Data is moved to Databricks for transformation and preparation.
 4. **Annotation**: Azure ML Studio performs text labeling and annotation.
-5. **Storage**: Annotated data is stored in Data Lake Storage.
-6. **Validation**: Quality Validator checks the annotated data.
-7. **Output Generation**: Final outputs are generated and made available for downstream use.
-8. **Monitoring & Support**: Logs are captured in CloudWatch; issues are managed via the Support Ticket API and database.
+5. **Storage**: Annotated data is stored in Data Lake Storage ADLS Gen2.
+6. **Validation**: automatically picked up by spark structured streaming for Pyspark processing. for preforming quality validation.
+7. **Output Generation**: Final outputs are generated and made available for downstream use in JSON.
+
+
+
