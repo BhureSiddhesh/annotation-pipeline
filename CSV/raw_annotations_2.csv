@@ -1,4 +1,0 @@
-text,annotator_id,label,confidence_score
-"What are your business hours?",1,"general_inquiry",0.60
-"How do I return an item?",3,"return_request",0.91
-"how do I cancle my order",2,"cancle_order",0.90

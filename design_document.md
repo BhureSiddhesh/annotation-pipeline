@@ -1,4 +1,4 @@
-# Design Document: Annotation Architecture
+# Design Document: Annotation pipeline Architecture
 ![Annotation Architecture](./annotation_architecture_v2.jpg)
 
 ## 1. Overview

@@ -1,0 +1,8 @@
+{"text":"I need to reset my password","annotator_id":1,"label":"password_reset","confidence_score":0.95,"ingest_timestamp":"2025-12-15T15:43:15.306Z"}
+{"text":"How do I return an item?","annotator_id":1,"label":"return_request","confidence_score":0.92,"ingest_timestamp":"2025-12-15T15:43:15.306Z"}
+{"text":"I need to reset my password","annotator_id":2,"label":"password_reset","confidence_score":0.98,"ingest_timestamp":"2025-12-15T15:43:15.306Z"}
+{"text":"How do I return an item?","annotator_id":3,"label":"return_request","confidence_score":0.91,"ingest_timestamp":"2025-12-15T15:43:15.306Z"}
+{"text":"What are your business hours?","annotator_id":1,"label":"general_inquiry","confidence_score":0.8,"ingest_timestamp":"2025-12-15T15:43:53.785Z"}
+{"text":"How do I return an item?","annotator_id":3,"label":"return_request","confidence_score":0.91,"ingest_timestamp":"2025-12-15T15:43:53.785Z"}
+{"text":"customer care contact email","annotator_id":1,"label":"customer_service","confidence_score":0.85,"ingest_timestamp":"2025-12-15T15:44:37.686Z"}
+{"text":"customer care contact email","annotator_id":2,"label":"customer_service","confidence_score":0.88,"ingest_timestamp":"2025-12-15T15:44:37.686Z"}
