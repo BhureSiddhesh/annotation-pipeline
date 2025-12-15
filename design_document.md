@@ -194,7 +194,7 @@ Data enters the system via Event Hub.
     | Table            | Key Fields                                                                        | Lineage Role                                           |
     | ---------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------ |
     | documents        | doc_id (PK), bronze_path, silver_path, ingestion_timestamp                        | Raw source paths and preprocessing version             |
-    | annotations      | annotation_id (PK), doc_id (FK), annotator_id, label, raw_annotation_path,text | Ties labels to document and Kafka task origin          |
+    | annotations      | annotation_id (PK), doc_id (FK), annotator_id, label, raw_annotation_path,text | Ties labels to document and Kafka topic origin , annotation results         |
     | quality_metrics  | validation_id (PK), annotation_id (FK), gold_path, status, kappa_score, confidence_score            | Validation decisions and final Gold path               |
 
     every entry joining using these table sorted by timestampl field will give us entire journey path for input annotator.
